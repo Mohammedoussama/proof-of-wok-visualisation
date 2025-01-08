@@ -1,102 +1,102 @@
-#include <stdio.h>
+#include <raylib.h>
 #include <stdlib.h>
-#include <string.h>
-#include <SDL2/SDL.h>
+#include <time.h>  
+#include <stdio.h> 
 
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 600
-#define MAX_DIFFICULTY 5
-
-void generate_simple_hash(unsigned char *input, char *output) {
-    int hash_value = 0;
-    for (int i = 0; input[i] != '\0'; i++) {
-        hash_value += input[i];
+void hash_rnd(char *randed, int length) {
+    char chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    for (int i = 0; i < length; i++) {
+        randed[i] = chars[rand() % 36];
     }
-    sprintf(output, "%x", hash_value); 
+    randed[length] = '\0';  // gpt-ed , to terminate string
 }
+int main() {
+    InitWindow(1300,850, "Hash Code Animation");
 
+    srand(time(0)); //seeded rand ra7 yrandi b seed mn 1970 lrk in secs
 
-int meets_difficulty(char *hash, int difficulty) {
-    for (int i = 0; i < difficulty; i++) {
-        if (hash[i] != '0') {
-            return 0;
+    Texture2D telegram= LoadTexture("C:/Users/leNOVO/Downloads/660619.png");
+    Texture2D node= LoadTexture("C:/Users/leNOVO/Downloads/cube noir.png");  
+    Texture2D greennode= LoadTexture("C:/Users/leNOVO/Downloads/cube vert.png");
+
+    // animation vars
+    bool ssending = false;           
+    int currentNode = 1;              
+    double startTime = 0;          
+    double sendtime = 2;            
+    Vector2 telestart = {0, 0};       
+    Vector2 teleend = {0, 0};          
+    Vector2 telepos = {0, 0};        
+    bool nodesReceived[4]= {false, false, false, false}; // Track which nodes received the hash
+
+    // hash search variables
+    bool hashing = true;         
+    double searchStartTime = GetTime();
+    char currentCode[9];              
+    char foundCode[9];              
+    bool hashFound = false;
+
+        Vector2 nPosition[4]= { //raylib custom structure hold 2 stuff
+        {100, 350}, {1050, 180}, {1050, 350}, {1050, 520}};
+
+    while (!WindowShouldClose()) {
+
+        BeginDrawing();
+        ClearBackground(WHITE);
+
+        for (int i = 0; i < 4; i++) {//nodes
+            Texture2D klch = nodesReceived[i] ? greennode : node;  // condition ? if true : if false
+            DrawTextureEx(klch, nPosition[i], 0, 0.1f, WHITE);
         }
-    }
-    return 1;
-}
+        if (ssending) {//telegram
+            DrawTextureEx(telegram, telepos, 0, 0.2f, WHITE);
+        }
+        if (hashing) {//hashing
+            DrawText("Searching for hash...", 85, 510, 20, BLACK);
+            DrawText(currentCode, 85, 540, 30, RED);
+        } else if (hashFound) {
+            DrawText("Hash found!", 85, 510, 20, GREEN);
+            DrawText(foundCode, 85, 540, 30, GREEN);}
 
-void visualize_pow(int num_computers) {
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
-        return;
-    }
-
-    SDL_Window *window = SDL_CreateWindow("Proof of Work Visualization", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
-    if (window == NULL) {
-        printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
-        SDL_Quit();
-        return;
-    }
-
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    if (renderer == NULL) {
-        printf("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return;
-    }
-
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(renderer);
-    SDL_RenderPresent(renderer);
-
-    char input[] = "data_for_hashing";
-    char hash_output[64];
-
-    int difficulty = MAX_DIFFICULTY;
-    int finished_computers = 0;
-
-    while (finished_computers < num_computers) {
-        for (int i = 0; i < num_computers; i++) {
-            unsigned char modified_input[256];
-            sprintf((char *)modified_input, "%s%d", input, i);
-
-            generate_simple_hash(modified_input, hash_output);
-
-            
-            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-            SDL_Rect rect = {50 + (i * 120), WINDOW_HEIGHT / 2 - 50, 100, 100};
-            SDL_RenderFillRect(renderer, &rect);
-
-            
-            if (meets_difficulty(hash_output, difficulty)) {
-                SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-                SDL_RenderFillRect(renderer, &rect);
-                finished_computers++;
+        EndDrawing();
+        
+        if (hashing) {//hash anim
+            if (GetTime() - searchStartTime < 4) { // get time = lw9t in secs - time the program started ...> timer 
+                hash_rnd(currentCode, 8);
+            } else {
+                hashing = false;
+                hashFound = true;
+                hash_rnd(foundCode, 8);
+                nodesReceived[0] = true;
             }
+        }
+        if (IsKeyPressed(KEY_SPACE) && !hashing ) {
+            ssending =true;
+            startTime =GetTime();                        
+            telestart = {nPosition[0].x + 80, nPosition[0].y +30};
+            teleend = {nPosition[currentNode].x -50 , nPosition[currentNode].y+30}; 
+            telepos =telestart;                         
+        }
+        // Update send animation
+        if (ssending) {
+            double elapsed = GetTime() - startTime;// based on time it will increase t thats how the interpolation progress
+            double t = elapsed / sendtime;                
+            if (t >= 1.0) {                              
+                t = 1.0;
+                ssending = false;                       //verifi ida l7g 
+                nodesReceived[currentNode] = true;       
+                currentNode++;    }                      
+            // Interpolate
+            telepos.x =telestart.x + t * (teleend.x - telestart.x);
+            telepos.y =telestart.y + t * (teleend.y - telestart.y);
+        }
 
-            SDL_RenderPresent(renderer);
-            SDL_Delay(100);
-    }
-
-    SDL_Delay(2000);
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
 }
-
-int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        printf("Usage: %s <number_of_computers>\n", argv[0]);
-        return 1;
-    }
-
-    int num_computers = atoi(argv[1]);
-    if (num_computers <= 0) {
-        printf("Number of computers must be a positive integer.\n");
-        return 1;
-    }
-
-    visualize_pow(num_computers);
+    // Cleans stuff if there were memory allocated 
+    UnloadTexture(telegram);
+    UnloadTexture(node);
+    UnloadTexture(greennode);
+    CloseWindow();
     return 0;
 }
+//this is our updater virsion that we did present
